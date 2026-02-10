@@ -83,6 +83,29 @@
       background: #e0e0e0; color: #555; border: none; border-radius: 4px; cursor: pointer;
     }
     .card-remove:hover { background: #d0d0d0; color: #222; }
+    .csv-format-table {
+      margin-top: 0.75rem; margin-bottom: 0.5rem; width: 100%; max-width: 100%; overflow-x: auto;
+      border: 1px solid #e0e0e0; border-radius: 4px; background: #fff;
+    }
+    .csv-format-table table {
+      width: 100%; border-collapse: collapse; font-size: 0.8125rem;
+    }
+    .csv-format-table thead {
+      background: #f8f9fa; border-bottom: 2px solid #e0e0e0;
+    }
+    .csv-format-table th {
+      padding: 0.5rem 0.6rem; text-align: left; font-weight: 600; color: #222; border-right: 1px solid #e0e0e0;
+      white-space: nowrap;
+    }
+    .csv-format-table th:last-child { border-right: none; }
+    .csv-format-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+    .csv-format-table tbody tr:last-child { border-bottom: none; }
+    .csv-format-table td {
+      padding: 0.4rem 0.6rem; color: #555; border-right: 1px solid #f0f0f0;
+      white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .csv-format-table td:last-child { border-right: none; }
+    .csv-format-table tbody tr:hover { background: #f8f9fa; }
   </style>
 </head>
 <body>
@@ -91,6 +114,50 @@
   </div>
   <div class="upload-section">
     <input type="text" id="csv-url" class="upload-input" placeholder="Paste your Google Sheet CSV link here (File → Share → Publish to web → CSV), or upload a CSV file below.">
+    <div class="csv-format-table">
+      <table>
+        <thead>
+          <tr>
+            <th>address</th>
+            <th>url</th>
+            <th>sizeSqFt</th>
+            <th>pricePerMonth</th>
+            <th>psf</th>
+            <th>mrt</th>
+            <th>status</th>
+            <th>comments</th>
+            <th>lat</th>
+            <th>lng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>881 North Bridge Road</td>
+            <td>https://www.commercialguru.com.sg/listing/...</td>
+            <td>1012</td>
+            <td>4280</td>
+            <td>4.23</td>
+            <td>Lavender - 5mins walk</td>
+            <td>Unviewed</td>
+            <td></td>
+            <td>1.3521</td>
+            <td>103.8198</td>
+          </tr>
+          <tr>
+            <td>CT Hub</td>
+            <td>https://www.commercialguru.com.sg/listing/...</td>
+            <td>1824</td>
+            <td>7800</td>
+            <td>4.28</td>
+            <td>Bendemeer - 3mins walk</td>
+            <td>Viewed</td>
+            <td>Big space reno cost will be higher</td>
+            <td>1.312311</td>
+            <td>103.86299</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <div class="upload-hint">CSV columns: address, url, sizeSqFt, pricePerMonth, psf, mrt, status, comments, lat, lng</div>
     <div class="upload-actions">
       <button type="button" id="load-csv-btn" class="btn-load">Load</button>
