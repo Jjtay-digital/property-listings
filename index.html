@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commercial Property Listings – Singapore</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; color: #222; }
+    .header {
+      padding: 1rem 1.5rem;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    .header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+      padding: 0.75rem 1.5rem; background: #fff; border-bottom: 1px solid #e0e0e0;
+    }
+    .controls label { font-size: 0.875rem; color: #555; }
+    .controls select { padding: 0.35rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.875rem; }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      min-height: calc(100vh - 140px);
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    #map {
+      height: 100%;
+      min-height: 400px;
+    }
+    .list-panel {
+      background: #fff;
+      overflow-y: auto;
+      max-height: calc(100vh - 140px);
+    }
+    .list-panel h2 { margin: 0; padding: 1rem 1.5rem; font-size: 1rem; font-weight: 600; border-bottom: 1px solid #eee; }
+    .card {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .card:hover { background: #f8f9fa; }
+    .card.active { background: #e8f4fd; border-left: 3px solid #1a1a2e; }
+    .card-address { font-weight: 600; margin-bottom: 0.35rem; }
+    .card-address a { color: #1a1a2e; text-decoration: none; }
+    .card-address a:hover { text-decoration: underline; }
+    .card-meta { font-size: 0.8125rem; color: #555; margin-top: 0.25rem; }
+    .card-comments { font-size: 0.8125rem; color: #666; margin-top: 0.5rem; max-height: 2.5em; overflow: hidden; text-overflow: ellipsis; }
+    .card-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; float: right; margin-left: 0.5rem; }
+    .popup-content { min-width: 220px; max-width: 320px; }
+    .popup-content img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 4px; margin-bottom: 0.5rem; }
+    .popup-address { font-weight: 600; margin-bottom: 0.5rem; }
+    .popup-meta { font-size: 0.875rem; color: #555; margin: 0.25rem 0; }
+    .popup-comments { font-size: 0.8125rem; color: #666; margin-top: 0.5rem; }
+    .popup-link { display: inline-block; margin-top: 0.5rem; padding: 0.35rem 0.75rem; background: #1a1a2e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.875rem; }
+    .popup-link:hover { background: #2d2d44; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Commercial Property Listings – Singapore</h1>
+  </div>
+  <div class="controls">
+    <label>Status:</label>
+    <select id="filter-status">
+      <option value="">All</option>
+      <option value="Viewed">Viewed</option>
+      <option value="Unviewed">Unviewed</option>
+    </select>
+    <label>Sort:</label>
+    <select id="sort-by">
+      <option value="price-asc">Price (low to high)</option>
+      <option value="price-desc">Price (high to low)</option>
+      <option value="psf-asc">PSF (low to high)</option>
+      <option value="psf-desc">PSF (high to low)</option>
+      <option value="address">Address (A–Z)</option>
+    </select>
+  </div>
+  <div class="layout">
+    <div id="map"></div>
+    <div class="list-panel">
+      <h2>Listings</h2>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <script type="application/json" id="listings-data">[{"address":"881 North Bridge Road","url":"https://www.commercialguru.com.sg/listing/for-rent-southbank-23626192#","sizeSqFt":1012,"pricePerMonth":4280,"psf":4.23,"mrt":"Lavender - 5mins walk","status":"Unviewed","comments":"","lat":1.3521,"lng":103.8198},{"address":"882 North Bridge Road","url":"https://www.commercialguru.com.sg/listing/for-rent-southbank-23315055#","sizeSqFt":1184,"pricePerMonth":5328,"psf":4.5,"mrt":"Lavender - 5mins walk","status":"Unviewed","comments":"","lat":1.3531,"lng":103.8198},{"address":"Boat Quay / Raffles Place / Marina","url":"https://www.commercialguru.com.sg/listing/for-rent-value-rental-from-4-50psf-sheltered-to-mrt-raffles-area-60153294#","sizeSqFt":1722,"pricePerMonth":7749,"psf":4.5,"mrt":"Downtown - 3mins walk","status":"Unviewed","comments":"","lat":1.3541,"lng":103.8198},{"address":"881 North Bridge Road","url":"https://www.commercialguru.com.sg/listing/for-rent-southbank-60203765#","sizeSqFt":1012,"pricePerMonth":4290,"psf":4.24,"mrt":"Lavender - 5mins walk","status":"Unviewed","comments":"","lat":1.3551,"lng":103.8198},{"address":"CES Centre 171 Chin Swee Road","url":"https://www.commercialguru.com.sg/listing/for-rent-ces-centre-25471283","sizeSqFt":1432,"pricePerMonth":8303,"psf":5.8,"mrt":"Chinatown - 8mins walk","status":"Unviewed","comments":"","lat":1.3561,"lng":103.8198},{"address":"Amoy Street","url":"https://www.commercialguru.com.sg/listing/for-rent-amoy-street-60193336#","sizeSqFt":1533,"pricePerMonth":9800,"psf":6.39,"mrt":"Telok Ayer - 2mins walk","status":"Unviewed","comments":"","lat":1.3571,"lng":103.8198},{"address":"72 Bendemeer Road","url":"https://www.commercialguru.com.sg/listing/for-rent-newly-renovated-3-mins-walk-to-boon-keng-mrt-500000046#location-section","sizeSqFt":1405,"pricePerMonth":7687,"psf":5.47,"mrt":"Bendemeer - 7mins walk","status":"Unviewed","comments":"","lat":1.3581,"lng":103.8198},{"address":"CT Hub","url":"https://www.commercialguru.com.sg/listing/for-rent-ct-hub-60194084","sizeSqFt":1824,"pricePerMonth":7800,"psf":4.28,"mrt":"Bendemeer - 3mins walk","status":"Viewed","comments":"Big space reno cost will be higher(repainting/flooring works. This unit have an odd wall design near the CEO office.","lat":1.3591,"lng":103.8198},{"address":"CT Hub 2 #10-88","url":"https://www.commercialguru.com.sg/listing/for-rent-ct-hub-2-60228055","sizeSqFt":1700,"pricePerMonth":6550,"psf":3.85,"mrt":"Bendemeer - 3mins walk","status":"Viewed","comments":"Smaller space horizontally as compared to our current unit. But bigger space vertically. 2 floors. Too many glass doors and lack of natural light.","lat":1.3601,"lng":103.8198},{"address":"CT Hub 2","url":"https://www.commercialguru.com.sg/listing/for-rent-ct-hub-2-25120849","sizeSqFt":1928,"pricePerMonth":8500,"psf":4.41,"mrt":"Bendemeer - 3mins walk","status":"Viewed","comments":"Too big. We co sharing with the owner, although owner will do a partisian wall between us","lat":1.3611,"lng":103.8198},{"address":"CT Hub 2 #07-62","url":"https://www.commercialguru.com.sg/listing/for-rent-ct-hub-2-60037679","sizeSqFt":2000,"pricePerMonth":9000,"psf":4.5,"mrt":"Bendemeer - 3mins walk","status":"Viewed","comments":"Big space/well furnished/min. reno needed. Offered 45k take over, move in 10th May, Tenant asking 50k take over instead","lat":1.3621,"lng":103.8198}]</script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (function () {
+      var SINGAPORE = [1.3521, 103.8198];
+      var map = L.map('map').setView(SINGAPORE, 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+
+      var markers = [];
+      var listings = [];
+
+      function loadData() {
+        return fetch('listings.json')
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+          .catch(function () {
+            var el = document.getElementById('listings-data');
+            return el ? JSON.parse(el.textContent) : [];
+          });
+      }
+
+      function formatPrice(n) {
+        return '$' + Number(n).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function popupHtml(listing) {
+        var parts = [];
+        if (listing.imageUrl) {
+          parts.push('<img src="' + escapeHtml(listing.imageUrl) + '" alt="">');
+        }
+        parts.push('<div class="popup-address">' + escapeHtml(listing.address) + '</div>');
+        parts.push('<div class="popup-meta">' + listing.sizeSqFt + ' sq ft &middot; ' + formatPrice(listing.pricePerMonth) + '/mth &middot; $' + listing.psf + ' PSF</div>');
+        parts.push('<div class="popup-meta">' + escapeHtml(listing.mrt) + ' &middot; ' + escapeHtml(listing.status) + '</div>');
+        if (listing.comments) {
+          parts.push('<div class="popup-comments">' + escapeHtml(listing.comments) + '</div>');
+        }
+        parts.push('<a class="popup-link" href="' + escapeHtml(listing.url) + '" target="_blank" rel="noopener">View listing</a>');
+        return '<div class="popup-content">' + parts.join('') + '</div>';
+      }
+
+      function escapeHtml(s) {
+        if (!s) return '';
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      function renderCard(listing, index) {
+        var thumb = listing.imageUrl
+          ? '<img class="card-thumb" src="' + escapeHtml(listing.imageUrl) + '" alt="">'
+          : '';
+        return (
+          '<div class="card" data-index="' + index + '">' +
+            thumb +
+            '<div class="card-address"><a href="' + escapeHtml(listing.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + escapeHtml(listing.address) + '</a></div>' +
+            '<div class="card-meta">' + listing.sizeSqFt + ' sq ft &middot; ' + formatPrice(listing.pricePerMonth) + '/mth &middot; $' + listing.psf + ' PSF &middot; ' + escapeHtml(listing.mrt) + ' &middot; ' + escapeHtml(listing.status) + '</div>' +
+            (listing.comments ? '<div class="card-comments">' + escapeHtml(listing.comments) + '</div>' : '') +
+          '</div>'
+        );
+      }
+
+      function applyFilterAndSort() {
+        var statusFilter = document.getElementById('filter-status').value;
+        var sortBy = document.getElementById('sort-by').value;
+        var filtered = statusFilter
+          ? listings.filter(function (l) { return l.status === statusFilter; })
+          : listings.slice();
+
+        if (sortBy === 'price-asc') filtered.sort(function (a, b) { return a.pricePerMonth - b.pricePerMonth; });
+        else if (sortBy === 'price-desc') filtered.sort(function (a, b) { return b.pricePerMonth - a.pricePerMonth; });
+        else if (sortBy === 'psf-asc') filtered.sort(function (a, b) { return a.psf - b.psf; });
+        else if (sortBy === 'psf-desc') filtered.sort(function (a, b) { return b.psf - a.psf; });
+        else if (sortBy === 'address') filtered.sort(function (a, b) { return (a.address || '').localeCompare(b.address || ''); });
+
+        return filtered;
+      }
+
+      function syncMarkersAndList() {
+        var filtered = applyFilterAndSort();
+        var listEl = document.getElementById('list');
+        listEl.innerHTML = filtered.map(function (listing) {
+          var idx = listings.indexOf(listing);
+          return renderCard(listing, idx);
+        }).join('');
+
+        markers.forEach(function (m) { map.removeLayer(m); });
+        markers = [];
+        filtered.forEach(function (listing) {
+          var marker = L.marker([listing.lat, listing.lng])
+            .addTo(map)
+            .bindPopup(popupHtml(listing));
+          marker._listingIndex = listings.indexOf(listing);
+          markers.push(marker);
+        });
+
+        listEl.querySelectorAll('.card').forEach(function (card) {
+          card.addEventListener('click', function () {
+            var idx = parseInt(card.getAttribute('data-index'), 10);
+            var listing = listings[idx];
+            if (!listing) return;
+            map.setView([listing.lat, listing.lng], 17);
+            var m = markers.find(function (mk) { return mk._listingIndex === idx; });
+            if (m) m.openPopup();
+            listEl.querySelectorAll('.card').forEach(function (c) { c.classList.remove('active'); });
+            card.classList.add('active');
+          });
+        });
+      }
+
+      document.getElementById('filter-status').addEventListener('change', syncMarkersAndList);
+      document.getElementById('sort-by').addEventListener('change', syncMarkersAndList);
+
+      loadData().then(function (data) {
+        listings = data;
+        syncMarkersAndList();
+      });
+    })();
+  </script>
+</body>
+</html>
