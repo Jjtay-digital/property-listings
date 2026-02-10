@@ -59,11 +59,45 @@
     .popup-comments { font-size: 0.8125rem; color: #666; margin-top: 0.5rem; }
     .popup-link { display: inline-block; margin-top: 0.5rem; padding: 0.35rem 0.75rem; background: #1a1a2e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.875rem; }
     .popup-link:hover { background: #2d2d44; }
+    .upload-section {
+      padding: 0.75rem 1.5rem; background: #fff; border-bottom: 1px solid #e0e0e0;
+    }
+    .upload-section .upload-input {
+      width: 100%; max-width: 560px; padding: 0.5rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.875rem;
+    }
+    .upload-section .upload-input::placeholder { color: #999; }
+    .upload-hint { color: #999; font-size: 0.8125rem; margin-top: 0.35rem; }
+    .upload-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+    .upload-actions button, .upload-actions .file-label {
+      padding: 0.35rem 0.75rem; border-radius: 4px; font-size: 0.875rem; cursor: pointer;
+    }
+    .upload-actions .btn-load { background: #1a1a2e; color: #fff; border: none; }
+    .upload-actions .btn-load:hover { background: #2d2d44; }
+    .upload-actions .btn-restore, .upload-actions .btn-download { background: #f0f0f0; color: #222; border: 1px solid #ccc; }
+    .upload-actions .btn-restore:hover, .upload-actions .btn-download:hover { background: #e5e5e5; }
+    .upload-actions .file-label { display: inline-block; background: #f0f0f0; border: 1px solid #ccc; }
+    .upload-actions input[type="file"] { display: none; }
+    .card-wrap { position: relative; }
+    .card-remove {
+      position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.2rem 0.4rem; font-size: 0.75rem;
+      background: #e0e0e0; color: #555; border: none; border-radius: 4px; cursor: pointer;
+    }
+    .card-remove:hover { background: #d0d0d0; color: #222; }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>Commercial Property Listings – Singapore</h1>
+  </div>
+  <div class="upload-section">
+    <input type="text" id="csv-url" class="upload-input" placeholder="Paste your Google Sheet CSV link here (File → Share → Publish to web → CSV), or upload a CSV file below.">
+    <div class="upload-hint">CSV columns: address, url, sizeSqFt, pricePerMonth, psf, mrt, status, comments, lat, lng</div>
+    <div class="upload-actions">
+      <button type="button" id="load-csv-btn" class="btn-load">Load</button>
+      <label class="file-label"><input type="file" id="csv-file" accept=".csv"> Upload CSV</label>
+      <button type="button" id="restore-removed-btn" class="btn-restore">Restore removed</button>
+      <button type="button" id="download-json-btn" class="btn-download">Download current listings (JSON)</button>
+    </div>
   </div>
   <div class="controls">
     <label>Status:</label>
@@ -99,6 +133,30 @@
 
       var markers = [];
       var listings = [];
+      var HIDDEN_KEY = 'property-listings-hidden';
+      var SINGAPORE_LAT = 1.3521, SINGAPORE_LNG = 103.8198;
+
+      function listingId(listing) {
+        return (listing.address || '') + '|' + (listing.url || '');
+      }
+      function getHiddenSet() {
+        try {
+          var raw = localStorage.getItem(HIDDEN_KEY);
+          return raw ? new Set(JSON.parse(raw)) : new Set();
+        } catch (e) { return new Set(); }
+      }
+      function setHidden(id) {
+        var set = getHiddenSet();
+        set.add(id);
+        localStorage.setItem(HIDDEN_KEY, JSON.stringify([].slice.call(set)));
+      }
+      function clearHidden() {
+        localStorage.removeItem(HIDDEN_KEY);
+      }
+      function visibleListings() {
+        var hidden = getHiddenSet();
+        return listings.filter(function (l) { return !hidden.has(listingId(l)); });
+      }
 
       function loadData() {
         return fetch('listings.json')
@@ -107,6 +165,64 @@
             var el = document.getElementById('listings-data');
             return el ? JSON.parse(el.textContent) : [];
           });
+      }
+
+      function parseCsvLine(line) {
+        var out = [], inQuote = false, cur = '';
+        for (var i = 0; i < line.length; i++) {
+          var c = line[i];
+          if (c === '"') { inQuote = !inQuote; continue; }
+          if (!inQuote && c === ',') { out.push(cur.trim()); cur = ''; continue; }
+          cur += c;
+        }
+        out.push(cur.trim());
+        return out;
+      }
+      function parseCsv(text) {
+        var lines = text.trim().split(/\r?\n/);
+        if (lines.length < 2) return [];
+        var headerVals = parseCsvLine(lines[0]);
+        var headers = headerVals.map(function (h) { return h.trim().toLowerCase().replace(/\s+/g, ''); });
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+          var vals = parseCsvLine(lines[i]);
+          var row = {};
+          headers.forEach(function (h, j) {
+            var v = vals[j] !== undefined ? vals[j] : '';
+            if (h === 'address') row.address = v;
+            else if (h === 'url') row.url = v;
+            else if (h === 'sizesqft') row.sizeSqFt = parseInt(v, 10) || 0;
+            else if (h === 'pricepermonth') row.pricePerMonth = parseFloat(v) || 0;
+            else if (h === 'psf') row.psf = parseFloat(v) || 0;
+            else if (h === 'mrt') row.mrt = v;
+            else if (h === 'status') row.status = v;
+            else if (h === 'comments') row.comments = v;
+            else if (h === 'lat') row.lat = parseFloat(v) || SINGAPORE_LAT;
+            else if (h === 'lng') row.lng = parseFloat(v) || SINGAPORE_LNG;
+            else if (h === 'imageurl') row.imageUrl = v;
+          });
+          if (!row.lat) row.lat = SINGAPORE_LAT;
+          if (!row.lng) row.lng = SINGAPORE_LNG;
+          rows.push(row);
+        }
+        return rows;
+      }
+      function loadFromUrl(url) {
+        var proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        return fetch(proxy).then(function (r) { return r.text(); }).then(function (text) {
+          var rows = parseCsv(text);
+          listings = listings.concat(rows);
+          syncMarkersAndList();
+        });
+      }
+      function loadFromFile(file) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          var rows = parseCsv(reader.result);
+          listings = listings.concat(rows);
+          syncMarkersAndList();
+        };
+        reader.readAsText(file);
       }
 
       function formatPrice(n) {
@@ -139,22 +255,25 @@
         var thumb = listing.imageUrl
           ? '<img class="card-thumb" src="' + escapeHtml(listing.imageUrl) + '" alt="">'
           : '';
+        var id = escapeHtml(listingId(listing));
         return (
+          '<div class="card-wrap"><button type="button" class="card-remove" data-listing-id="' + id + '" title="Remove from list">Remove</button>' +
           '<div class="card" data-index="' + index + '">' +
             thumb +
             '<div class="card-address"><a href="' + escapeHtml(listing.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + escapeHtml(listing.address) + '</a></div>' +
             '<div class="card-meta">' + listing.sizeSqFt + ' sq ft &middot; ' + formatPrice(listing.pricePerMonth) + '/mth &middot; $' + listing.psf + ' PSF &middot; ' + escapeHtml(listing.mrt) + ' &middot; ' + escapeHtml(listing.status) + '</div>' +
             (listing.comments ? '<div class="card-comments">' + escapeHtml(listing.comments) + '</div>' : '') +
-          '</div>'
+          '</div></div>'
         );
       }
 
       function applyFilterAndSort() {
+        var visible = visibleListings();
         var statusFilter = document.getElementById('filter-status').value;
         var sortBy = document.getElementById('sort-by').value;
         var filtered = statusFilter
-          ? listings.filter(function (l) { return l.status === statusFilter; })
-          : listings.slice();
+          ? visible.filter(function (l) { return l.status === statusFilter; })
+          : visible.slice();
 
         if (sortBy === 'price-asc') filtered.sort(function (a, b) { return a.pricePerMonth - b.pricePerMonth; });
         else if (sortBy === 'price-desc') filtered.sort(function (a, b) { return b.pricePerMonth - a.pricePerMonth; });
@@ -184,7 +303,8 @@
         });
 
         listEl.querySelectorAll('.card').forEach(function (card) {
-          card.addEventListener('click', function () {
+          card.addEventListener('click', function (e) {
+            if (e.target.classList.contains('card-remove')) return;
             var idx = parseInt(card.getAttribute('data-index'), 10);
             var listing = listings[idx];
             if (!listing) return;
@@ -195,10 +315,39 @@
             card.classList.add('active');
           });
         });
+        listEl.querySelectorAll('.card-remove').forEach(function (btn) {
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var id = btn.getAttribute('data-listing-id');
+            if (id) { setHidden(id); syncMarkersAndList(); }
+          });
+        });
       }
 
       document.getElementById('filter-status').addEventListener('change', syncMarkersAndList);
       document.getElementById('sort-by').addEventListener('change', syncMarkersAndList);
+
+      document.getElementById('load-csv-btn').addEventListener('click', function () {
+        var url = document.getElementById('csv-url').value.trim();
+        if (url) loadFromUrl(url);
+      });
+      document.getElementById('csv-file').addEventListener('change', function () {
+        var file = this.files[0];
+        if (file) { loadFromFile(file); this.value = ''; }
+      });
+      document.getElementById('restore-removed-btn').addEventListener('click', function () {
+        clearHidden();
+        syncMarkersAndList();
+      });
+      document.getElementById('download-json-btn').addEventListener('click', function () {
+        var visible = visibleListings();
+        var blob = new Blob([JSON.stringify(visible, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'listings.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
 
       loadData().then(function (data) {
         listings = data;
